@@ -1,0 +1,8 @@
+name = "calendar-line-bot"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# cronトリガーは使用しない（カレンダー管理特化）
+
+[vars]
+ENVIRONMENT = "production"
