@@ -80,14 +80,29 @@ async function handleTextMessage(event: LineEvent, env: Env): Promise<void> {
   console.log('=== handleTextMessage START ===');
 
   try {
-    const userText = event.message!.text!;
+    const userText = event.message!.text!.trim().toLowerCase();
     const replyToken = event.replyToken;
     console.log('text:', userText);
 
     if (!replyToken) return;
 
-    // 。コマンドまたはヘルプ
-    if (userText === '。' || userText === 'help' || userText === 'ヘルプ' || userText === '/' || userText === '空き' || userText === '空き時間') {
+    // ヘルプコマンド
+    if (userText === 'help' || userText === 'ヘルプ' || userText === '?') {
+      const helpMessage = `【空き時間検索Bot ヘルプ】
+
+■ 空き時間を検索する
+「。」「空き」「空き時間」「/」のいずれかを送信
+
+■ このヘルプを表示
+「ヘルプ」「help」「?」のいずれかを送信
+
+チームメンバー全員のカレンダーから、平日10:00-19:00の空き時間を検索します。`;
+      await replyMessage(env, replyToken, helpMessage);
+      return;
+    }
+
+    // 空き時間検索コマンド
+    if (userText === '。' || userText === '/' || userText === '空き' || userText === '空き時間') {
       // 空き時間を検索
       const busySlots = await getAllBusySlots(env, 7);
       const freeSlots = findFreeTimeSlots(busySlots, 7);
@@ -97,7 +112,7 @@ async function handleTextMessage(event: LineEvent, env: Env): Promise<void> {
     }
 
     // それ以外は使い方を案内
-    await replyMessage(env, replyToken, '「。」を送ると今週の空き時間を表示します！');
+    await replyMessage(env, replyToken, '「。」を送ると今週の空き時間を表示します！\n「ヘルプ」で使い方を確認できます。');
 
     console.log('=== handleTextMessage SUCCESS ===');
   } catch (error) {
@@ -122,17 +137,18 @@ function findFreeTimeSlots(busySlots: BusySlot[], days: number): FreeTimeSlot[] 
   const WORK_END = 19;    // 19:00
   const MIN_SLOT_MINUTES = 60;  // 最低1時間の空き
 
-  const today = new Date();
-  const jstOffset = 9 * 60 * 60 * 1000;
-  const jstToday = new Date(today.getTime() + jstOffset);
+  // JSTで今日の日付を取得
+  const jstFormatter = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' });
+  const todayStr = jstFormatter.format(new Date());
 
   for (let i = 0; i < days; i++) {
-    const targetDate = new Date(jstToday);
-    targetDate.setDate(targetDate.getDate() + i);
-    const dateStr = targetDate.toISOString().split('T')[0];
+    // 日付を計算（UTCベースで日数を加算してからJSTに変換）
+    const targetDateUTC = new Date(todayStr + 'T00:00:00Z');
+    targetDateUTC.setUTCDate(targetDateUTC.getUTCDate() + i);
+    const dateStr = jstFormatter.format(targetDateUTC);
 
     // 土日はスキップ
-    const dayOfWeek = targetDate.getDay();
+    const dayOfWeek = targetDateUTC.getUTCDay();
     if (dayOfWeek === 0 || dayOfWeek === 6) {
       continue;
     }
