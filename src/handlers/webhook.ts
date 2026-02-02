@@ -76,6 +76,27 @@ async function handleFollow(event: LineEvent, env: Env): Promise<void> {
   }
 }
 
+/**
+ * コマンド種別を判定する
+ */
+export type CommandType = 'help' | 'search' | 'unknown';
+
+export function parseCommand(rawText: string): CommandType {
+  const text = rawText.trim().toLowerCase();
+
+  // ヘルプコマンド
+  if (text === 'help' || text === 'ヘルプ' || text === '?') {
+    return 'help';
+  }
+
+  // 空き時間検索コマンド
+  if (text === '。' || text === '/' || text === '空き' || text === '空き時間') {
+    return 'search';
+  }
+
+  return 'unknown';
+}
+
 async function handleTextMessage(event: LineEvent, env: Env): Promise<void> {
   console.log('=== handleTextMessage START ===');
 
@@ -86,8 +107,10 @@ async function handleTextMessage(event: LineEvent, env: Env): Promise<void> {
 
     if (!replyToken) return;
 
+    const command = parseCommand(event.message!.text!);
+
     // ヘルプコマンド
-    if (userText === 'help' || userText === 'ヘルプ' || userText === '?') {
+    if (command === 'help') {
       const helpMessage = `【空き時間検索Bot ヘルプ】
 
 ■ 空き時間を検索する
@@ -102,7 +125,7 @@ async function handleTextMessage(event: LineEvent, env: Env): Promise<void> {
     }
 
     // 空き時間検索コマンド
-    if (userText === '。' || userText === '/' || userText === '空き' || userText === '空き時間') {
+    if (command === 'search') {
       // 空き時間を検索
       const busySlots = await getAllBusySlots(env, 7);
       const freeSlots = findFreeTimeSlots(busySlots, 7);
@@ -111,7 +134,7 @@ async function handleTextMessage(event: LineEvent, env: Env): Promise<void> {
       return;
     }
 
-    // それ以外は使い方を案内
+    // それ以外（unknown）は使い方を案内
     await replyMessage(env, replyToken, '「。」を送ると今週の空き時間を表示します！\n「ヘルプ」で使い方を確認できます。');
 
     console.log('=== handleTextMessage SUCCESS ===');
@@ -124,13 +147,13 @@ async function handleTextMessage(event: LineEvent, env: Env): Promise<void> {
 /**
  * 空き時間スロットを見つける
  */
-interface FreeTimeSlot {
+export interface FreeTimeSlot {
   date: string;
   startTime: string;
   endTime: string;
 }
 
-function findFreeTimeSlots(busySlots: BusySlot[], days: number): FreeTimeSlot[] {
+export function findFreeTimeSlots(busySlots: BusySlot[], days: number): FreeTimeSlot[] {
   const freeSlots: FreeTimeSlot[] = [];
 
   const WORK_START = 10;  // 10:00
@@ -206,18 +229,18 @@ function findFreeTimeSlots(busySlots: BusySlot[], days: number): FreeTimeSlot[] 
   return freeSlots;
 }
 
-function timeToMinutes(time: string): number {
+export function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
 }
 
-function minutesToTime(minutes: number): string {
+export function minutesToTime(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function generateFreeTimeSlotsText(slots: FreeTimeSlot[]): string {
+export function generateFreeTimeSlotsText(slots: FreeTimeSlot[]): string {
   if (slots.length === 0) {
     return '今週は空きがないようです。お忙しいですね！';
   }
